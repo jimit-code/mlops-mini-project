@@ -1,0 +1,20 @@
+data_ingestion:
+  test_size : 0.2
+  stratify : true
+  random_state : 42
+
+bow:
+  max_features : 50000
+  ngram_min : 1
+  ngram_max: 1
+
+xgboost:
+  n_estimators: 500
+  learning_rate : 0.1
+  max_depth : 8
+  sub_sample : 0.8
+  colsample_bytree: 0.8
+  reg_lambda : 1.0
+  tree_method : "hist"
+  eval_metrics : "logloss"
+  random_state : 42 

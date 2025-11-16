@@ -1,0 +1,129 @@
+schema: '2.0'
+stages:
+  ingest:
+    cmd: python src/data_ingestion.py
+    deps:
+    - path: src/data_ingestion.py
+      hash: md5
+      md5: b15584ec8c806b8c3edcad450080e804
+      size: 4486
+    params:
+      params.yaml:
+        data_ingestion.random_state: 42
+        data_ingestion.stratify: true
+        data_ingestion.test_size: 0.2
+    outs:
+    - path: src/data/raw
+      hash: md5
+      md5: 48dea689a9c68a453910c365f9926260.dir
+      size: 827973
+      nfiles: 2
+  preprocessing:
+    cmd: python src/data_preprocessing.py
+    deps:
+    - path: src/data/raw/test.csv
+      hash: md5
+      md5: 79606de3f2d7add1813a50b1a29f1543
+      size: 164672
+    - path: src/data/raw/train.csv
+      hash: md5
+      md5: b40f45435b33b543d8382fac1bdbaa50
+      size: 663301
+    - path: src/data_preprocessing.py
+      hash: md5
+      md5: 48382cc37af2582f3e66b2a0e41aeb2e
+      size: 3972
+    outs:
+    - path: data/processed
+      hash: md5
+      md5: a5afcc4fb20def0ef130df25d3e9fd19.dir
+      size: 627443
+      nfiles: 2
+  bow:
+    cmd: python src/features/bow.py
+    deps:
+    - path: data/processed/test.csv
+      hash: md5
+      md5: dab1cfbe9fbab8b1099372add7ecc7e0
+      size: 124949
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 28e5f48a4f22a58117013d8587eeef3c
+      size: 502494
+    - path: src/features/bow.py
+      hash: md5
+      md5: bffb7746683ae1b81c8bf98170461873
+      size: 3648
+    params:
+      params.yaml:
+        bow.max_features: 50000
+        bow.ngram_max: 1
+        bow.ngram_min: 1
+    outs:
+    - path: data/features/bow
+      hash: md5
+      md5: d739377f8f05df5bf7e930f4e7146fd4.dir
+      size: 170078452
+      nfiles: 2
+  model_building:
+    cmd: python src/models/model_building.py
+    deps:
+    - path: data/features/bow/train_bow.csv
+      hash: md5
+      md5: f0ab70fe9ef26d5cf4e03d1b549050d2
+      size: 136035570
+    - path: src/models/model_building.py
+      hash: md5
+      md5: 655c386694a6f85894d7d102721f2796
+      size: 3916
+    params:
+      params.yaml:
+        xgboost.colsample_bytree: 0.8
+        xgboost.eval_metrics: logloss
+        xgboost.learning_rate: 0.1
+        xgboost.max_depth: 8
+        xgboost.n_estimators: 500
+        xgboost.random_state: 42
+        xgboost.reg_lambda: 1.0
+        xgboost.sub_sample: 0.8
+        xgboost.tree_method: hist
+    outs:
+    - path: model/xgb.joblib
+      hash: md5
+      md5: 21757275883ca791c2dace958aee13cf
+      size: 20505
+  model_eval:
+    cmd: python src/models/model_evaluation.py
+    deps:
+    - path: data/features/bow/test.bow.csv
+      hash: md5
+      md5: 33d858575e01d5dac3a13cee40ebf657
+      size: 34042882
+    - path: model/xgb.joblib
+      hash: md5
+      md5: 21757275883ca791c2dace958aee13cf
+      size: 20505
+    - path: src/models/model_evaluation.py
+      hash: md5
+      md5: 8df1a767902cce0867e20e6de695917f
+      size: 8735
+    outs:
+    - path: reports/metrics.json
+      hash: md5
+      md5: b5eecc6e7242cf7fc3bafab0d57310b3
+      size: 122
+  model-registry:
+    cmd: python src/models/model_registry.py
+    deps:
+    - path: model/xgb.joblib
+      hash: md5
+      md5: 21757275883ca791c2dace958aee13cf
+      size: 20505
+    - path: reports/model_info.json
+      hash: md5
+      md5: 21d8bb480b8b7ce7700da7ccaeb14500
+      size: 93
+    - path: src/models/model_registry.py
+      hash: md5
+      md5: 06f449f614a74206aa1abc2fbb5c074b
+      size: 3916

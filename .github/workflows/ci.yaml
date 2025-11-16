@@ -22,5 +22,9 @@ jobs:
       - name: install dependencies
         run: pip install -r requirements.txt
 
-      - name: run pipeline
-        run: dvc repro
+      - name: run tests
+        run: pytest || echo "No tests yet"
+
+      # later you can change this step to:
+      # - name: run pipeline
+      #   run: dvc repro

@@ -9,19 +9,16 @@ import nltk
 from nltk.corpus import stopwords as nltk_stopwords
 from nltk.stem import WordNetLemmatizer
 
-# Ensure the resource is available
-try:
-    STOPWORDS = set(nltk_stopwords.words("english"))
-except LookupError:
-    nltk.download("stopwords")
-    STOPWORDS = set(nltk_stopwords.words("english"))
-    
-# Build a set for O(1) membership checks
-# STOPWORDS = set(stopwords.words("english"))
 
-    
+for resource in ["stopwords", "wordnet"]:
+    try:
+        nltk.data.find(f"corpora/{resource}")
+    except LookupError:
+        nltk.download(resource)
+
+STOPWORDS = set(nltk_stopwords.words("english"))
 OUT_DIR = Path("data/processed")
-    
+
 def get_logger(name: str = __name__) -> logging.Logger:
     
     logger = logging.getLogger(name)

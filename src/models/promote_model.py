@@ -95,31 +95,40 @@ def get_latest_version(client: MlflowClient, model_name: str) -> str:
     return latest.version
 
 
-def archive_current_production(client: MlflowClient, model_name: str) -> None:
+def archive_current_production(
+    client: MlflowClient,
+    model_name: str,
+    keep_version: str,
+) -> None:
     """
-    Move all current Production versions to Archived.
-    On DagsHub, filtering by current_stage may not be supported.
-    In that case, we log a warning and skip archiving.
+    Move all current Production versions to Archived, except `keep_version`.
+    We avoid filtering by current_stage in the server filter string
+    because DagsHub may not support that properly.
     """
     try:
-        prod_versions = list(
-            client.search_model_versions(
-                f"name='{model_name}' and current_stage='Production'"
-            )
-        )
+        versions = list(client.search_model_versions(f"name='{model_name}'"))
     except RestException as e:
         msg = str(e)
-        if "INVALID_PARAMETER_VALUE" in msg or "unsupported endpoint" in msg.lower():
+        if "unsupported endpoint" in msg.lower():
             logger.warning(
-                "Backend does not support filtering by current_stage. "
-                "Skipping archive step. Error: %s",
+                "Backend does not support search_model_versions. "
+                "Skipping archive step. Error. %s",
                 msg,
             )
             return
         raise
 
+    prod_versions = [
+        v for v in versions
+        if v.current_stage == "Production" and v.version != keep_version
+    ]
+
     if not prod_versions:
-        logger.info("No existing Production versions to archive for '%s'", model_name)
+        logger.info(
+            "No existing Production versions to archive for '%s' (other than v%s)",
+            model_name,
+            keep_version,
+        )
         return
 
     for v in prod_versions:
@@ -139,7 +148,7 @@ def archive_current_production(client: MlflowClient, model_name: str) -> None:
             if "unsupported endpoint" in msg.lower():
                 logger.warning(
                     "Stage transition to Archived not supported by backend. "
-                    "Error: %s",
+                    "Error. %s",
                     msg,
                 )
                 return
@@ -182,14 +191,15 @@ def main():
     client = MlflowClient()
 
     try:
-        # 1. Find latest version
+        # 1. Find latest version . this is the one we want as Production
         latest_version = get_latest_version(client, MODEL_NAME)
 
-        # 2. Archive any current Production versions (best-effort)
-        archive_current_production(client, MODEL_NAME)
-
-        # 3. Promote the latest version to Production (best-effort)
+        # 2. Promote that version to Production
         promote_to_production(client, MODEL_NAME, latest_version)
+
+        # 3. Archive any *other* Production versions
+        archive_current_production(client, MODEL_NAME, keep_version=latest_version)
+
 
         logger.info(
             "Promotion script finished. Model '%s' version %s is intended for Production.",

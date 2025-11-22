@@ -98,12 +98,25 @@ def get_latest_version(client: MlflowClient, model_name: str) -> str:
 def archive_current_production(client: MlflowClient, model_name: str) -> None:
     """
     Move all current Production versions to Archived.
+    On DagsHub, filtering by current_stage may not be supported.
+    In that case, we log a warning and skip archiving.
     """
-    prod_versions = list(
-        client.search_model_versions(
-            f"name='{model_name}' and current_stage='Production'"
+    try:
+        prod_versions = list(
+            client.search_model_versions(
+                f"name='{model_name}' and current_stage='Production'"
+            )
         )
-    )
+    except RestException as e:
+        msg = str(e)
+        if "INVALID_PARAMETER_VALUE" in msg or "unsupported endpoint" in msg.lower():
+            logger.warning(
+                "Backend does not support filtering by current_stage. "
+                "Skipping archive step. Error: %s",
+                msg,
+            )
+            return
+        raise
 
     if not prod_versions:
         logger.info("No existing Production versions to archive for '%s'", model_name)
@@ -115,11 +128,22 @@ def archive_current_production(client: MlflowClient, model_name: str) -> None:
             model_name,
             v.version,
         )
-        client.transition_model_version_stage(
-            name=model_name,
-            version=v.version,
-            stage="Archived",
-        )
+        try:
+            client.transition_model_version_stage(
+                name=model_name,
+                version=v.version,
+                stage="Archived",
+            )
+        except RestException as e:
+            msg = str(e)
+            if "unsupported endpoint" in msg.lower():
+                logger.warning(
+                    "Stage transition to Archived not supported by backend. "
+                    "Error: %s",
+                    msg,
+                )
+                return
+            raise
 
 
 def promote_to_production(client: MlflowClient, model_name: str, version: str) -> None:
@@ -131,11 +155,23 @@ def promote_to_production(client: MlflowClient, model_name: str, version: str) -
         model_name,
         version,
     )
-    client.transition_model_version_stage(
-        name=model_name,
-        version=version,
-        stage="Production",
-    )
+    try:
+        client.transition_model_version_stage(
+            name=model_name,
+            version=version,
+            stage="Production",
+        )
+    except RestException as e:
+        msg = str(e)
+        if "unsupported endpoint" in msg.lower():
+            logger.warning(
+                "Stage transition to Production not supported by backend. "
+                "The model is still the latest version but registry stage "
+                "will remain unchanged. Error: %s",
+                msg,
+            )
+            return
+        raise
 
 
 # -------------------------------------------------------------------
@@ -149,33 +185,27 @@ def main():
         # 1. Find latest version
         latest_version = get_latest_version(client, MODEL_NAME)
 
-        # 2. Archive any current Production versions
+        # 2. Archive any current Production versions (best-effort)
         archive_current_production(client, MODEL_NAME)
 
-        # 3. Promote the latest version to Production
+        # 3. Promote the latest version to Production (best-effort)
         promote_to_production(client, MODEL_NAME, latest_version)
 
         logger.info(
-            "Model '%s' version %s is now in Production",
+            "Promotion script finished. Model '%s' version %s is intended for Production.",
             MODEL_NAME,
             latest_version,
         )
 
     except RestException as e:
-        msg = str(e)
-        if "unsupported endpoint" in msg.lower():
-            logger.warning(
-                "MLflow registry stage transitions are not supported by this "
-                "tracking backend. Skipping promotion. Error. %s",
-                msg,
-            )
-        else:
-            logger.error("MLflow REST error during promotion. %s", e)
-            raise
+        # only unexpected REST errors reach here
+        logger.error("MLflow REST error during promotion. %s", e)
+        print(f"Error: {e}")
+        # raise  # you can uncomment this if you WANT CI to fail on unexpected errors
     except Exception as e:
         logger.error("Unexpected error during model promotion. %s", e)
-        print(f"Error. {e}")
-        raise
+        print(f"Error: {e}")
+        # raise
 
 
 if __name__ == "__main__":

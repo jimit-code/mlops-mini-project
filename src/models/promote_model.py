@@ -4,8 +4,9 @@ from pathlib import Path
 
 import mlflow
 from dotenv import load_dotenv
-from mlflow.tracking import MlflowClient
 from mlflow.exceptions import RestException
+from mlflow.tracking import MlflowClient
+
 
 # -------------------------------------------------------------------
 # Config . env . MLflow setup
@@ -36,15 +37,14 @@ repo_name = "mlops-mini-project"
 
 mlflow.set_tracking_uri(f"{dagshub_url}/{repo_owner}/{repo_name}.mlflow")
 
-MODEL_NAME = "Sentiment_XGB_BOW"   # same as in model_registration
-TARGET_STAGE = "Production"    # or "Staging" . "Archived"
+MODEL_NAME = "Sentiment_XGB_BOW"
 
 
 # -------------------------------------------------------------------
 # Logger
 # -------------------------------------------------------------------
 
-def get_logger(name: str = "model_promotion") -> logging.Logger:
+def get_logger(name: str = "model_promote_mlflow") -> logging.Logger:
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
 
@@ -72,24 +72,22 @@ logger = get_logger()
 
 
 # -------------------------------------------------------------------
-# Promotion logic
+# Helpers
 # -------------------------------------------------------------------
 
-def get_latest_model_version(client: MlflowClient, model_name: str) -> str:
-    """Return the version string of the latest model version."""
-    versions = client.search_model_versions(f"name='{model_name}'")
-
+def get_latest_version(client: MlflowClient, model_name: str) -> str:
+    """
+    Return the version string of the latest registered model version.
+    """
+    versions = list(client.search_model_versions(f"name='{model_name}'"))
     if not versions:
         raise ValueError(f"No versions found for model '{model_name}'")
 
-    # sort by version number . newest last
-    versions_sorted = sorted(
-        versions,
-        key=lambda v: int(v.version),
-    )
+    versions_sorted = sorted(versions, key=lambda v: int(v.version))
     latest = versions_sorted[-1]
-    logger.debug(
-        "Latest version of model '%s' is %s with current stage '%s'",
+
+    logger.info(
+        "Latest version for model '%s' is %s (current_stage=%s)",
         model_name,
         latest.version,
         latest.current_stage,
@@ -97,38 +95,78 @@ def get_latest_model_version(client: MlflowClient, model_name: str) -> str:
     return latest.version
 
 
-def promote_model(model_name: str, target_stage: str = "Production") -> None:
+def archive_current_production(client: MlflowClient, model_name: str) -> None:
+    """
+    Move all current Production versions to Archived.
+    """
+    prod_versions = list(
+        client.search_model_versions(
+            f"name='{model_name}' and current_stage='Production'"
+        )
+    )
+
+    if not prod_versions:
+        logger.info("No existing Production versions to archive for '%s'", model_name)
+        return
+
+    for v in prod_versions:
+        logger.info(
+            "Archiving model '%s' version %s (was Production)",
+            model_name,
+            v.version,
+        )
+        client.transition_model_version_stage(
+            name=model_name,
+            version=v.version,
+            stage="Archived",
+        )
+
+
+def promote_to_production(client: MlflowClient, model_name: str, version: str) -> None:
+    """
+    Promote the given version to Production.
+    """
+    logger.info(
+        "Promoting model '%s' version %s to Production",
+        model_name,
+        version,
+    )
+    client.transition_model_version_stage(
+        name=model_name,
+        version=version,
+        stage="Production",
+    )
+
+
+# -------------------------------------------------------------------
+# Main
+# -------------------------------------------------------------------
+
+def main():
     client = MlflowClient()
 
     try:
-        version = get_latest_model_version(client, model_name)
+        # 1. Find latest version
+        latest_version = get_latest_version(client, MODEL_NAME)
+
+        # 2. Archive any current Production versions
+        archive_current_production(client, MODEL_NAME)
+
+        # 3. Promote the latest version to Production
+        promote_to_production(client, MODEL_NAME, latest_version)
 
         logger.info(
-            "Promoting model '%s' version %s to stage '%s'",
-            model_name,
-            version,
-            target_stage,
-        )
-
-        client.transition_model_version_stage(
-            name=model_name,
-            version=version,
-            stage=target_stage,
-        )
-
-        logger.info(
-            "Model '%s' version %s successfully moved to stage '%s'",
-            model_name,
-            version,
-            target_stage,
+            "Model '%s' version %s is now in Production",
+            MODEL_NAME,
+            latest_version,
         )
 
     except RestException as e:
         msg = str(e)
         if "unsupported endpoint" in msg.lower():
             logger.warning(
-                "Model registry stage transitions are not supported "
-                "by this MLflow backend. Skipping promotion. Error. %s",
+                "MLflow registry stage transitions are not supported by this "
+                "tracking backend. Skipping promotion. Error. %s",
                 msg,
             )
         else:
@@ -136,15 +174,8 @@ def promote_model(model_name: str, target_stage: str = "Production") -> None:
             raise
     except Exception as e:
         logger.error("Unexpected error during model promotion. %s", e)
-        raise
-
-
-def main():
-    try:
-        promote_model(MODEL_NAME, TARGET_STAGE)
-    except Exception as e:
-        logger.error("Failed to promote model. %s", e)
         print(f"Error. {e}")
+        raise
 
 
 if __name__ == "__main__":

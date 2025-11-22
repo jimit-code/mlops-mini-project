@@ -2,61 +2,75 @@ stages:
   ingest:
     cmd: python src/data_ingestion.py
     params:
-    - data_ingestion.random_state
-    - data_ingestion.stratify
-    - data_ingestion.test_size
+      - data_ingestion.random_state
+      - data_ingestion.stratify
+      - data_ingestion.test_size
     deps:
-    - src/data_ingestion.py
+      - src/data_ingestion.py
     outs:
-    - src/data/raw
+      - src/data/raw
+
   preprocessing:
     cmd: python src/data_preprocessing.py
     deps:
-    - src/data/raw/test.csv
-    - src/data/raw/train.csv
-    - src/data_preprocessing.py
+      - src/data/raw/test.csv
+      - src/data/raw/train.csv
+      - src/data_preprocessing.py
     outs:
-    - data/processed
+      - data/processed
+
   bow:
     cmd: python src/features/bow.py
     deps:
-    - data/processed/test.csv
-    - data/processed/train.csv
-    - src/features/bow.py
+      - data/processed/test.csv
+      - data/processed/train.csv
+      - src/features/bow.py
     params:
-    - bow.ngram_max
-    - bow.ngram_min
-    - bow.max_features
+      - bow.ngram_max
+      - bow.ngram_min
+      - bow.max_features
     outs:
-    - data/features/bow
+      - data/features/bow
+
   model_building:
     cmd: python src/models/model_building.py
     params:
-    - xgboost.colsample_bytree
-    - xgboost.eval_metrics
-    - xgboost.learning_rate
-    - xgboost.max_depth
-    - xgboost.n_estimators
-    - xgboost.random_state
-    - xgboost.reg_lambda
-    - xgboost.sub_sample
-    - xgboost.tree_method
+      - xgboost.colsample_bytree
+      - xgboost.eval_metrics
+      - xgboost.learning_rate
+      - xgboost.max_depth
+      - xgboost.n_estimators
+      - xgboost.random_state
+      - xgboost.reg_lambda
+      - xgboost.sub_sample
+      - xgboost.tree_method
     deps:
-    - data/features/bow/train_bow.csv
-    - src/models/model_building.py
+      - data/features/bow/train_bow.csv
+      - src/models/model_building.py
     outs:
-    - model/xgb.joblib
+      - model/xgb.joblib
+
   model_eval:
     cmd: python src/models/model_evaluation.py
     deps:
-    - data/features/bow/test.bow.csv
-    - model/xgb.joblib
-    - src/models/model_evaluation.py
+      - data/features/bow/test.bow.csv
+      - model/xgb.joblib
+      - src/models/model_evaluation.py
     outs:
-    - reports/metrics.json
+      - reports/metrics.json
+      - reports/model_info.json
+
   model-registry:
     cmd: python src/models/model_registry.py
     deps:
-    - model/xgb.joblib
-    - reports/model_info.json
-    - src/models/model_registry.py
+      - model/xgb.joblib
+      - reports/model_info.json
+      - src/models/model_registry.py
+
+  model-staging-pointer:
+    cmd: python src/models/model_staging_pointer.py
+    deps:
+      - reports/model_info.json
+      - src/models/model_staging_pointer.py
+    outs:
+      - reports/staging_model.json

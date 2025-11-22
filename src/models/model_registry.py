@@ -65,40 +65,32 @@ def load_model_info(file_path: Path = MODEL_INFO) -> dict:
     p = Path(file_path)
     try:
         with p.open("r", encoding="utf-8") as f:
-            MODEL_INFO = json.load(f)
+            INFO = json.load(f)
             logger.debug("model info loaded safely %s", p.resolve())
-            return MODEL_INFO
+            return INFO
         
     except Exception as e:
         logger.exception("Couldn't load the model_info file %s", e)
+        raise
         
-def register_model(model_name: str, model_info: str) -> None:
-    
+def register_model(model_name: str, model_info: dict) -> None:
     try:
-        run_id = model_info['run_id']
-        artifact_path = model_info['model_path']
-        
-        model_uri = f"run:/{run_id}/{artifact_path}"
+        run_id = model_info["run_id"]
+        artifact_path = model_info["model_path"]
+
+        model_uri = f"runs:/{run_id}/{artifact_path}"
         logger.debug("Registering model from URI %s as '%s'", model_uri, model_name)
-        
+
         model_version = mlflow.register_model(model_uri=model_uri, name=model_name)
-        
-        client = mlflow.tracking.MlflowClient()
-        client.transition_model_version_stage(
-            name=model_name,
-            version=model_version.version,
-            stage = "stagging"
-        )
-        
+
         logger.info(
-            "Model '%s' version %s registered and moved to 'Staging'",
+            "Model '%s' version %s registered (stage will remain None on DagsHub)",
             model_name,
             model_version.version,
         )
 
     except RestException as e:
         msg = str(e)
-        # DagsHub currently does not support some registry endpoints
         if "unsupported endpoint" in msg.lower():
             logger.warning(
                 "MLflow model registry endpoint is not supported by this "

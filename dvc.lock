@@ -31,8 +31,8 @@ stages:
       size: 663301
     - path: src/data_preprocessing.py
       hash: md5
-      md5: 48382cc37af2582f3e66b2a0e41aeb2e
-      size: 3972
+      md5: 1ccb038ad130c3c475105505075734a6
+      size: 3874
     outs:
     - path: data/processed
       hash: md5
@@ -105,13 +105,17 @@ stages:
       size: 20505
     - path: src/models/model_evaluation.py
       hash: md5
-      md5: 8df1a767902cce0867e20e6de695917f
-      size: 8735
+      md5: a0dc5edf694b236d85613b1bc7251acb
+      size: 8876
     outs:
     - path: reports/metrics.json
       hash: md5
       md5: b5eecc6e7242cf7fc3bafab0d57310b3
       size: 122
+    - path: reports/model_info.json
+      hash: md5
+      md5: 385dd04c5a6e9fbb33a5afb50517ae80
+      size: 93
   model-registry:
     cmd: python src/models/model_registry.py
     deps:
@@ -121,9 +125,25 @@ stages:
       size: 20505
     - path: reports/model_info.json
       hash: md5
-      md5: 21d8bb480b8b7ce7700da7ccaeb14500
+      md5: 385dd04c5a6e9fbb33a5afb50517ae80
       size: 93
     - path: src/models/model_registry.py
       hash: md5
-      md5: 06f449f614a74206aa1abc2fbb5c074b
-      size: 3916
+      md5: 029f879ec45c0572e5827e2e700578ae
+      size: 3610
+  model-staging-pointer:
+    cmd: python src/models/model_staging_pointer.py
+    deps:
+    - path: reports/model_info.json
+      hash: md5
+      md5: 385dd04c5a6e9fbb33a5afb50517ae80
+      size: 93
+    - path: src/models/model_staging_pointer.py
+      hash: md5
+      md5: b1416103ac35f2b9b6ee435e5c9f62e1
+      size: 1932
+    outs:
+    - path: reports/staging_model.json
+      hash: md5
+      md5: 54e2cdbc92479aecf6722e1a2f089bdf
+      size: 89

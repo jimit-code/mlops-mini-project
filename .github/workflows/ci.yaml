@@ -1,26 +1,57 @@
 name: CI Pipeline
 
-on: push
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
 
 jobs:
   ci-job:
     runs-on: ubuntu-latest
 
-    env:
-      DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-      DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
-
     steps:
-      - name: checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: setup python
-        uses: actions/setup-python@v3
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      - name: install dependencies
-        run: pip install -r requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: run pipeline
-        run: dvc repro
+      - name: Cache DVC cache
+        uses: actions/cache@v4
+        with:
+          path: .dvc/cache
+          key: dvc-cache-${{ hashFiles('dvc.lock') }}
+          restore-keys: |
+            dvc-cache-
+
+      - name: Run DVC pipeline
+        env:
+          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
+        run: |
+          dvc repro
+
+      - name: Run unit tests
+        env:
+          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
+        run: |
+          python -m unittest discover -s tests -p "test_*.py"
+
+      # Optional. only after you create src/models/model_promote_pointer.py
+      # - name: Promote staging to production pointer
+      #   if: success()
+      #   run: |
+      #     python src/models/model_promote_pointer.py

@@ -266,7 +266,11 @@ def main():
                     mlflow.log_param(param_name, param_value)
                     
             try: 
-                mlflow.sklearn.log_model(clf, "model")
+                mlflow.sklearn.log_model(
+                    clf,
+                    artifact_path= "model",
+                    registered_model_name= "Sentiment_XGB_BOW"
+                )
             except Exception as e:
                 logger.warning("Skipping model logging to MLFLOW got error %s", e)
 

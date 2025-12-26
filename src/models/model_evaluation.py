@@ -221,11 +221,18 @@ def main():
 
         # IMPORTANT: MLflow 3 style model logging uses "name", not "artifact_path"
         # This creates a logged model named "model" under the run.
-        logged = mlflow.sklearn.log_model(clf, name="model")
+        try:
+            logged = mlflow.sklearn.log_model(clf, name="model")
+            model_path_for_registry = "model"
+        except TypeError:
+            # Older MLflow: use artifact_path
+            logged = mlflow.sklearn.log_model(clf, artifact_path="model")
+            model_path_for_registry = "model"
         logger.debug("Logged MLflow model. logged=%s", logged)
 
         # IMPORTANT: model_path must match the name used above
-        save_model_info(run.info.run_id, "model", "reports/model_info.json")
+        # save_model_info(run.info.run_id, "model", "reports/model_info.json")
+        save_model_info(run.info.run_id, model_path_for_registry, "reports/model_info.json")
 
         # Log artifacts
         mlflow.log_artifact(str(metrics_path))

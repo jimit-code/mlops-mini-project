@@ -81,3 +81,19 @@ jobs:
           context: .
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/emotion:latest
+      
+      - name: Deploy to EC2
+        if: success()
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/emotion:latest
+            docker stop my-app || true
+            docker rm my-app || true
+            docker run -p 80:5000 --name my-app \
+              -e MLFLOW_TRACKING_URI="https://dagshub.com/jimit-code/mlops-mini-project.mlflow" \
+              ${{ secrets.DOCKER_HUB_USERNAME }}/emotion:latest
+            docker ps --filter "name=my-app"

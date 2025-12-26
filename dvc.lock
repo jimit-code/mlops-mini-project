@@ -82,16 +82,16 @@ stages:
         xgboost.eval_metrics: logloss
         xgboost.learning_rate: 0.1
         xgboost.max_depth: 8
-        xgboost.n_estimators: 500
+        xgboost.n_estimators: 700
         xgboost.random_state: 42
         xgboost.reg_lambda: 1.0
-        xgboost.sub_sample: 0.8
+        xgboost.sub_sample: 0.9
         xgboost.tree_method: hist
     outs:
     - path: model/xgb.joblib
       hash: md5
-      md5: 21757275883ca791c2dace958aee13cf
-      size: 20505
+      md5: d0b4b9ecacb12626a04d9100686caace
+      size: 26873
   model_eval:
     cmd: python src/models/model_evaluation.py
     deps:
@@ -101,12 +101,12 @@ stages:
       size: 34042882
     - path: model/xgb.joblib
       hash: md5
-      md5: 21757275883ca791c2dace958aee13cf
-      size: 20505
+      md5: d0b4b9ecacb12626a04d9100686caace
+      size: 26873
     - path: src/models/model_evaluation.py
       hash: md5
-      md5: a0dc5edf694b236d85613b1bc7251acb
-      size: 8876
+      md5: 3c677869b3ca6ff142bd9eb849fdf129
+      size: 7646
     outs:
     - path: reports/metrics.json
       hash: md5
@@ -114,36 +114,36 @@ stages:
       size: 122
     - path: reports/model_info.json
       hash: md5
-      md5: 385dd04c5a6e9fbb33a5afb50517ae80
-      size: 93
+      md5: 8ce30a80395b3a5d455a27f735924ec2
+      size: 82
   model-registry:
     cmd: python src/models/model_registry.py
     deps:
     - path: model/xgb.joblib
       hash: md5
-      md5: 21757275883ca791c2dace958aee13cf
-      size: 20505
+      md5: d0b4b9ecacb12626a04d9100686caace
+      size: 26873
     - path: reports/model_info.json
       hash: md5
-      md5: 385dd04c5a6e9fbb33a5afb50517ae80
-      size: 93
+      md5: 8ce30a80395b3a5d455a27f735924ec2
+      size: 82
     - path: src/models/model_registry.py
       hash: md5
-      md5: 029f879ec45c0572e5827e2e700578ae
-      size: 3610
+      md5: ba791e539f3b7ea32e6bf0e929a149fe
+      size: 4715
   model-staging-pointer:
     cmd: python src/models/model_staging_pointer.py
     deps:
     - path: reports/model_info.json
       hash: md5
-      md5: 385dd04c5a6e9fbb33a5afb50517ae80
+      md5: 44293739a2a5a22f6596403811637282
       size: 93
     - path: src/models/model_staging_pointer.py
       hash: md5
-      md5: b1416103ac35f2b9b6ee435e5c9f62e1
-      size: 1932
+      md5: 070dcdd74341308f9f8663994a2d0cc6
+      size: 1991
     outs:
     - path: reports/staging_model.json
       hash: md5
-      md5: 54e2cdbc92479aecf6722e1a2f089bdf
+      md5: d6b13aec60d840b31813884103f46ece
       size: 89

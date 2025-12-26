@@ -2,8 +2,8 @@ import json
 import logging
 from pathlib import Path
 
-CANDIDATE_INFO = Path("reports/model_info.json")        # written by model_evaluation
-STAGING_INFO = Path("reports/staging_model.json")       # our logical "Staging" pointer
+CANDIDATE_INFO = Path("reports/model_info.json")   # written by model_evaluation
+STAGING_INFO = Path("reports/staging_model.json")  # our logical "Staging" pointer
 
 
 def get_logger(name: str = "model_staging_pointer") -> logging.Logger:
@@ -17,9 +17,7 @@ def get_logger(name: str = "model_staging_pointer") -> logging.Logger:
         fh = logging.FileHandler("model_staging_pointer.log")
         fh.setLevel(logging.DEBUG)
 
-        fmt = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
+        fmt = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         ch.setFormatter(fmt)
         fh.setFormatter(fmt)
 
@@ -39,19 +37,20 @@ def promote_to_staging(
 ) -> None:
     """Copy the latest evaluated model info to a 'Staging' pointer file."""
     if not candidate_path.exists():
-        raise FileNotFoundError(
-            f"Candidate model info not found. {candidate_path.resolve()}"
-        )
+        raise FileNotFoundError(f"Candidate model info not found: {candidate_path.resolve()}")
 
     with candidate_path.open("r", encoding="utf-8") as f:
         info = json.load(f)
+
+    if "run_id" not in info:
+        raise ValueError("model_info.json is missing required key: run_id")
 
     staging_path.parent.mkdir(parents=True, exist_ok=True)
     with staging_path.open("w", encoding="utf-8") as f:
         json.dump(info, f, indent=2)
 
     logger.info(
-        "Updated staging model pointer to run_id=%s, path=%s at %s",
+        "Updated staging model pointer to run_id=%s, model_path=%s at %s",
         info.get("run_id"),
         info.get("model_path"),
         staging_path.resolve(),

@@ -95,3 +95,4 @@ artifacts/
 data/
 tempdir/
 .dvc/cache/
+.env

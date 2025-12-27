@@ -100,6 +100,10 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            echo "hostname: $(hostname)"
+            TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60")
+            echo "instance-id: $(curl -sH "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)"
+            echo "public-ipv4: $(curl -sH "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4)"
             aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin ${{ steps.ecr.outputs.registry }}
             docker pull ${{ steps.ecr.outputs.registry }}/ecr_practice:${{ github.sha }}
             docker rm -f my-app || true

@@ -63,25 +63,35 @@ jobs:
         run: |
           python src/models/promote_model.py
 
-      - name: Log in to Docker Hub
+      - name: configure AWS credentials
         if: success()
-        uses: docker/login-action@v3
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+          aws-region: eu-north-1
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      
+      - name: Login to Amazon EC2
+        if: success() && github.event_name == 'push'
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Set up Docker Buildx
         if: success()
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push Docker image
+      - name: Build and push Docker image  to ECR
         if: success()
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/emotion:latest
-      
+          tags: | 
+            ${{ steps.ecr.outputs.registry }}/ecr_practice:latest
+            ${{ steps.ecr.outputs.registry }}/ecr_practice:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: Deploy to EC2
         if: success()
         uses: appleboy/ssh-action@v0.1.5
@@ -90,10 +100,12 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/emotion:latest
-            docker stop my-app || true
-            docker rm my-app || true
-            docker run -p 80:5000 --name my-app \
-              -e MLFLOW_TRACKING_URI="https://dagshub.com/jimit-code/mlops-mini-project.mlflow" \
-              ${{ secrets.DOCKER_HUB_USERNAME }}/emotion:latest
+            aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin ${{ steps.ecr.outputs.registry }}
+            docker pull ${{ steps.ecr.outputs.registry }}/ecr_practice:${{ github.sha }}
+            docker rm -f my-app || true
+            docker run -d --restart unless-stopped -p 80:5000 --name my-app \
+              -e DAGSHUB_USERNAME=${{ secrets.DAGSHUB_USERNAME }} \
+              -e DAGSHUB_PAT=${{ secrets.DAGSHUB_PAT }} \
+              -e MLFLOW_TRACKING_URI=https://dagshub.com/jimit-code/mlops-mini-project.mlflow \
+              ${{ steps.ecr.outputs.registry }}/ecr_practice:${{ github.sha }}
             docker ps --filter "name=my-app"

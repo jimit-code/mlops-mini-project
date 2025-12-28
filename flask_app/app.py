@@ -6,7 +6,11 @@ import string
 import pickle
 from pathlib import Path
 
-import mlflow
+try:
+    import mlflow
+except ImportError:
+    mlflow = None
+
 import pandas as pd
 import numpy as np
 import nltk
@@ -176,4 +180,3 @@ def predict():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
-    

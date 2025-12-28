@@ -1,0 +1,7 @@
+flask
+gunicorn
+nltk
+scikit-learn
+numpy
+mlflow==3.8.0
+xgboost==3.1.2

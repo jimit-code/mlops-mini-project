@@ -1,0 +1,14 @@
+.venv
+__pycache__/
+*.pyc
+.git/
+mlruns/
+.dvc/
+.dvc/cache/
+data/
+datasets/
+notebooks/
+*.csv
+*.parquet
+*.pt
+*.bin

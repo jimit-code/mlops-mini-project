@@ -4,7 +4,7 @@ set -euo pipefail
 APP_NAME="ecr_practice"
 REGION="eu-north-1"
 REGISTRY="774305594525.dkr.ecr.eu-north-1.amazonaws.com"
-IMAGE="${REGISTRY}/ecr_practice:latest"
+IMAGE="${REGISTRY}/ecr_practice:v4.0"
 
 HOST_PORT="80"
 CONTAINER_PORT="80"
